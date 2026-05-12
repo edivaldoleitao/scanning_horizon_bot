@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+
+<head>
+
+    <meta charset="UTF-8">
+
+    <title>
+        Horizon Scanner
+    </title>
+
+    <link
+        rel="stylesheet"
+        href="/static/style.css"
+    >
+
+</head>
+
+<body>
+
+<div class="container">
+
+    <h1>
+        Horizon Scanning Bot
+    </h1>
+
+    <form method="POST">
+
+        <input
+            type="text"
+            name="keyword"
+            placeholder="Digite um tema"
+            required
+        >
+
+        <button type="submit">
+            Escanear
+        </button>
+
+    </form>
+
+    {% if results %}
+
+    <div class="report">
+
+        <h2>
+            Relatório:
+            {{ keyword }}
+        </h2>
+
+        {% for item in results %}
+
+        <div class="card">
+
+            <h3>
+                {{ item.title }}
+            </h3>
+
+            <p>
+                {{ item.summary }}
+            </p>
+
+            <a
+                href="{{ item.link }}"
+                target="_blank"
+            >
+                Ler mais
+            </a>
+
+        </div>
+
+        {% endfor %}
+
+    </div>
+
+    {% endif %}
+
+</div>
+
+</body>
+</html>

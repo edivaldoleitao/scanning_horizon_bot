@@ -1,0 +1,67 @@
+body {
+
+    background: #0f172a;
+    color: white;
+    font-family: Arial;
+}
+
+.container {
+
+    width: 90%;
+    max-width: 1200px;
+    margin: auto;
+    padding: 30px;
+}
+
+h1 {
+
+    text-align: center;
+}
+
+form {
+
+    display: flex;
+    gap: 10px;
+    margin-bottom: 30px;
+}
+
+input {
+
+    flex: 1;
+    padding: 14px;
+    border: none;
+    border-radius: 10px;
+}
+
+button {
+
+    background: #2563eb;
+    color: white;
+    border: none;
+    border-radius: 10px;
+    padding: 14px 20px;
+    cursor: pointer;
+}
+
+.report {
+
+    margin-top: 20px;
+}
+
+.card {
+
+    background: #1e293b;
+    padding: 20px;
+    border-radius: 14px;
+    margin-bottom: 20px;
+}
+
+.card h3 {
+
+    margin-top: 0;
+}
+
+.card a {
+
+    color: #60a5fa;
+}
