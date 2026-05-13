@@ -11,24 +11,66 @@
 <div class="container">
     <h1>Horizon Scanning Bot</h1>
 
-    <form action="/" method="POST" class="search-form">
-        <div class="field">
-            <label for="theme">Tema</label>
-            <input id="theme" name="theme" type="text" placeholder="Ex.: internet das coisas" value="{{ theme }}" required>
-        </div>
+<form action="/" method="POST" class="search-form">
 
-        <div class="field">
-            <label for="term">Termo complementar</label>
-            <input id="term" name="term" type="text" placeholder="Ex.: crianças" value="{{ term }}">
-        </div>
+    <div class="field">
+        <label for="theme">Tema</label>
+        <input
+            id="theme"
+            name="theme"
+            type="text"
+            placeholder="Ex.: internet das coisas"
+            value="{{theme}}"
+            required
+        >
+    </div>
 
-        <div class="field small">
-            <label for="limit">Limite</label>
-            <input id="limit" name="limit" type="number" min="1" max="50" value="{{ limit }}">
-        </div>
+    <div class="field">
+        <label for="terms">Termos complementares</label>
+        <input
+            id="terms"
+            name="terms"
+            type="text"
+            placeholder="Ex.: crianças, educação, segurança"
+            value="{{terms_text}}"
+        >
+    </div>
 
-        <button type="submit">Escanear</button>
-    </form>
+    <div class="field">
+        <label for="source">Fonte</label>
+
+        <select id="source" name="source">
+            <option value="all">Ambos</option>
+            <option value="google">Google News</option>
+            <option value="scholar" >Google Scholar </option>
+        </select>
+    </div>
+
+    <div class="field">
+        <label for="start_date">Início</label>
+        <input
+            id="start_date"
+            name="start_date"
+            type="date"
+            value="{{start_date}}"
+        >
+    </div>
+
+    <div class="field">
+        <label for="end_date">Fim</label>
+        <input
+            id="end_date"
+            name="end_date"
+            type="date"
+            value="{{end_date}}"
+        >
+    </div>
+
+    <button type="submit">
+        Escanear
+    </button>
+
+</form>
 
     {% if error %}
         <p class="error">{{ error }}</p>
