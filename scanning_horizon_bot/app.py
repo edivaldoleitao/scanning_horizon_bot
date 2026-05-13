@@ -1,14 +1,17 @@
 # app.py
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Form
+from fastapi.templating import Jinja2Templates
 from fastapi.responses import HTMLResponse
+
 from scanner import horizon_scan
-from html import escape
+
 from datetime import datetime
 
 
 app = FastAPI()
 
+templates = Jinja2Templates(directory="templates")
 
 # =========================================================
 # TEMPLATE HTML
