@@ -20,7 +20,7 @@ HEADERS = {
 # NORMALIZAÇÃO
 # =========================================================
 
-def normalize_text(text: str) -> str:
+def normalize_text(text: str):
 
     text = (text or "").lower()
 
@@ -58,49 +58,99 @@ def phrase_similarity(a, b):
 
 
 # =========================================================
-# SCORE
+# SCORE / RELEVÂNCIA
 # =========================================================
 
-def calculate_score(text, terms):
+def calculate_score(
+    text,
+    theme,
+    extra_terms
+):
 
     text_norm = normalize_text(text)
 
-    score = 0
-
     matched = []
 
-    for term in terms:
+    score = 0
+
+    # =====================================================
+    # TEMA PRINCIPAL
+    # =====================================================
+
+    theme_norm = normalize_text(theme)
+
+    theme_words = [
+
+        w for w in theme_norm.split()
+
+        if len(w) >= 3
+    ]
+
+    theme_hits = 0
+
+    for word in theme_words:
+
+        if re.search(
+            rf"\b{re.escape(word)}\b",
+            text_norm
+        ):
+
+            theme_hits += 1
+
+    has_theme = False
+
+    # tema completo
+    if theme_norm in text_norm:
+
+        score += 10
+
+        has_theme = True
+
+        matched.append(theme)
+
+    # parcialmente relevante
+    elif theme_hits >= max(1, len(theme_words) // 2):
+
+        score += theme_hits * 2
+
+        has_theme = True
+
+        matched.append(theme)
+
+    # =====================================================
+    # TERMOS COMPLEMENTARES
+    # =====================================================
+
+    extra_matches = 0
+
+    for term in extra_terms:
 
         term_norm = normalize_text(term)
 
         if not term_norm:
             continue
 
-        term_score = 0
-
         found = False
 
-        # match exato
+        # match completo
         if term_norm in text_norm:
 
-            occurrences = text_norm.count(
-                term_norm
-            )
-
-            term_score += (
-                4 * occurrences
-            )
+            score += 5
 
             found = True
 
-        # match por palavras
-        words = term_norm.split()
+        else:
 
-        word_hits = 0
+            words = [
 
-        for word in words:
+                w for w in term_norm.split()
 
-            if len(word) >= 3:
+                if len(w) >= 3
+            ]
+
+            word_hits = 0
+
+            for word in words:
 
                 if re.search(
                     rf"\b{re.escape(word)}\b",
@@ -109,55 +159,48 @@ def calculate_score(text, terms):
 
                     word_hits += 1
 
-        if word_hits:
+            if word_hits >= 1:
 
-            term_score += word_hits
-
-            found = True
-
-        # match aproximado
-        if not found and len(term_norm) >= 4:
-
-            best = 0.0
-
-            for chunk in text_norm.split():
-
-                sim = phrase_similarity(
-                    term_norm,
-                    chunk
-                )
-
-                if sim > best:
-                    best = sim
-
-            if best >= 0.8:
-
-                term_score += 1
+                score += word_hits
 
                 found = True
 
-        # bônus se todas palavras aparecem
-        if words and all(
-
-            re.search(
-                rf"\b{re.escape(w)}\b",
-                text_norm
-            )
-
-            for w in words
-            if len(w) >= 3
-
-        ):
-
-            term_score += 2
-
-            found = True
-
         if found:
+
+            extra_matches += 1
 
             matched.append(term)
 
-            score += term_score
+    # =====================================================
+    # FILTRO DE COERÊNCIA
+    # =====================================================
+
+    relevant = False
+
+    # contém tema
+    if has_theme:
+
+        relevant = True
+
+    # OU:
+    # tema parcial + termo complementar
+    elif theme_hits >= 1 and extra_matches >= 1:
+
+        relevant = True
+
+    # resultado irrelevante
+    if not relevant:
+
+        return 0, []
+
+    # bônus contextual
+    if extra_matches >= 2:
+
+        score += 4
+
+    elif extra_matches == 1:
+
+        score += 2
 
     return score, matched
 
@@ -222,89 +265,116 @@ def calculate_growth(
 # =========================================================
 
 def parse_google_news(
-    query,
-    terms,
+    theme,
+    extra_terms,
     start_date=None,
     end_date=None
 ):
 
     items = []
 
-    encoded_query = quote_plus(
-        query
-    )
+    search_queries = []
 
-    rss_url = (
-        "https://news.google.com/rss/search?q="
-        f"{encoded_query}"
-    )
+    # query principal
+    search_queries.append(theme)
 
-    feed = feedparser.parse(
-        rss_url
-    )
+    # query combinada
+    for term in extra_terms:
 
-    for entry in feed.entries:
-
-        title = (
-            entry.get("title", "")
+        search_queries.append(
+            f"{theme} {term}"
         )
 
-        link = (
-            entry.get("link", "")
+    seen_links = set()
+
+    for query in search_queries:
+
+        encoded_query = quote_plus(query)
+
+        rss_url = (
+            "https://news.google.com/rss/search?q="
+            f"{encoded_query}"
         )
 
-        published = (
-            entry.get(
+        feed = feedparser.parse(
+            rss_url
+        )
+
+        for entry in feed.entries:
+
+            title = entry.get(
+                "title",
+                ""
+            )
+
+            summary = entry.get(
+                "summary",
+                ""
+            )
+
+            link = entry.get(
+                "link",
+                ""
+            )
+
+            if link in seen_links:
+                continue
+
+            seen_links.add(link)
+
+            published = entry.get(
                 "published",
                 "—"
             )
-        )
 
-        published_date = safe_parse_date(
-            published
-        )
+            published_date = safe_parse_date(
+                published
+            )
 
-        # filtro por período
-        if start_date and published_date:
+            # filtro período
+            if start_date and published_date:
 
-            if published_date < start_date:
+                if published_date < start_date:
+                    continue
+
+            if end_date and published_date:
+
+                if published_date > end_date:
+                    continue
+
+            full_text = f"""
+            {title}
+            {summary}
+            """
+
+            score, matched = calculate_score(
+                full_text,
+                theme,
+                extra_terms
+            )
+
+            if score <= 0:
                 continue
 
-        if end_date and published_date:
+            items.append({
 
-            if published_date > end_date:
-                continue
+                "type": "Notícia",
 
-        text = title
+                "title": title,
 
-        score, matched = calculate_score(
-            text,
-            terms
-        )
+                "source": "Google News",
 
-        # FILTRO MAIS FLEXÍVEL
-        if score < 1:
-            continue
+                "authors": "—",
 
-        items.append({
+                "published": published,
 
-            "type": "Notícia",
+                "score": score,
 
-            "title": title,
+                "matched_terms": matched,
 
-            "source": "Google News",
+                "link": link
 
-            "authors": "—",
-
-            "published": published,
-
-            "score": score,
-
-            "matched_terms": matched,
-
-            "link": link
-
-        })
+            })
 
     return items
 
@@ -315,7 +385,8 @@ def parse_google_news(
 
 def parse_google_scholar(
     query,
-    terms
+    theme,
+    extra_terms
 ):
 
     items = []
@@ -409,10 +480,11 @@ def parse_google_scholar(
 
         score, matched = calculate_score(
             text,
-            terms
+            theme,
+            extra_terms
         )
 
-        if score < 1:
+        if score <= 0:
             continue
 
         items.append({
@@ -442,9 +514,7 @@ def parse_google_scholar(
 # RADAR DE SINAIS FRACOS
 # =========================================================
 
-def weak_signal_radar(
-    results
-):
+def weak_signal_radar(results):
 
     now = datetime.now()
 
@@ -525,28 +595,24 @@ def weak_signal_radar(
 
     weak_signal_index = 0
 
-    # crescimento recente
     if growth_7_30 > 20:
         weak_signal_index += 3
 
     if growth_30_90 > 20:
         weak_signal_index += 2
 
-    # diversidade de fontes
     if diversity >= 3:
         weak_signal_index += 2
 
     elif diversity >= 2:
         weak_signal_index += 1
 
-    # relevância média
     if avg_score >= 5:
         weak_signal_index += 2
 
     elif avg_score >= 3:
         weak_signal_index += 1
 
-    # volume baixo favorece sinal fraco
     if len(results) <= 20:
         weak_signal_index += 2
 
@@ -637,10 +703,7 @@ def horizon_scan(
     end_date=None
 ):
 
-    # termos usados para scoring
-    terms = []
-
-    terms.append(theme)
+    extra_list = []
 
     if extra_terms:
 
@@ -654,37 +717,63 @@ def horizon_scan(
 
         ]
 
-        terms.extend(extra_list)
-
-    # IMPORTANTE:
-    # busca só pelo tema principal
-    query = theme
-
     results = []
+
+    # =====================================================
+    # GOOGLE NEWS
+    # =====================================================
 
     if source in ["google", "both"]:
 
         results.extend(
 
             parse_google_news(
-                query,
-                terms,
+                theme,
+                extra_list,
                 start_date,
                 end_date
             )
 
         )
 
+    # =====================================================
+    # GOOGLE SCHOLAR
+    # =====================================================
+
     if source in ["scholar", "both"]:
+
+        scholar_query = (
+            f"{theme} "
+            f"{' '.join(extra_list)}"
+        )
 
         results.extend(
 
             parse_google_scholar(
-                query,
-                terms
+                scholar_query,
+                theme,
+                extra_list
             )
 
         )
+
+    # =====================================================
+    # REMOVE DUPLICADOS
+    # =====================================================
+
+    unique = {}
+
+    for item in results:
+
+        unique[item["link"]] = item
+
+    results = list(
+        unique.values()
+    )
+
+    # =====================================================
+    # ORDENAÇÃO
+    # =====================================================
 
     results.sort(
 
@@ -693,6 +782,10 @@ def horizon_scan(
         reverse=True
 
     )
+
+    # =====================================================
+    # RADAR
+    # =====================================================
 
     radar = weak_signal_radar(
         results
